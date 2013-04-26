@@ -42,8 +42,8 @@ def main(version):
     parser.add_option("--listChannels", dest="listChannels", action="store_true", default=False, help="List all the channels")
     parser.add_option("--listErratas", dest="listErratas", action="store_true", default=False, help="Lists all the erratas of the source.")
     parser.add_option("--errataType", dest="errataType", default=None, type="string", help="The type of errata to display - one of 'Security Advisory', 'Product Enhancement Advisory', 'Bug Fix Advisory' ")
-    parser.add_option("--maxDate",dest="maxDate", default=None, type="string", help="Maximum update date for the erratas to be included (YYYY-MM-DD HH24:MI:SS)")
-    parser.add_option("--minDate",dest="minDate", default=None, type="string", help="Minimum update date for the erratas to be included (YYYY-MM-DD HH24:MI:SS)")
+    parser.add_option("--maxIssueDate",dest="maxIssueDate", default=None, type="string", help="Maximum issue date for the erratas to be included (YYYY-MM-DD HH24:MI:SS)")
+    parser.add_option("--minIssueDate",dest="minIssueDate", default=None, type="string", help="Minimum issue date for the erratas to be included (YYYY-MM-DD HH24:MI:SS)")
     (options, args) = parser.parse_args()
     verbose = options.verbose
     URL="http://%s/rpc/api" % options.host
@@ -65,7 +65,7 @@ def main(version):
                 print " %30s | %30s | %22s | %s" % ("Errata", "Type", "Update date", "Synopsis")
                 #TODO: add support for filtering here
                 for errata in client.channel.software.listErrata(key,options.sourceChannel):
-                    print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['update_date'], errata['advisory_synopsis'])
+                    print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement
         elif options.sourceChannel != None and options.destChannel != None:
             #TODO: determine which filters are in use and use appropriate functoin depending on which usecase.
             #TODO: step 1 get erratas to filter step 2 get all erratas from destination step 3 clone if not already in destination. only relevant packages, which are in the source, should be copied.
