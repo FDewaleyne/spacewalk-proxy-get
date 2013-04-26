@@ -1,0 +1,79 @@
+#!/usr/bin/python
+
+##
+# To the extent possible under law, Red Hat, Inc. has dedicated all copyright to this software to the public domain worldwide, pursuant to the CC0 Public Domain Dedication. 
+# This software is distributed without any warranty.  See <http://creativecommons.org/publicdomain/zero/1.0/>.
+##
+__author__ = "Felix Dewaleyne"
+__credits__ = ["Felix Dewaleyne"]
+__license__ = "GPL"
+__version__ = "0.1"
+__maintainer__ = "Felix Dewaleyne"
+__email__ = "fdewaley@redhat.com"
+__status__ = "test"
+
+# offers to list all packages that are not signed with a specific key, tries to change them to a NVREA identical package of the right signature, when possible
+# this script doesn't remove any package from the database, only from channels.
+
+import xmlrpclib, warnings
+URL=None
+client=None
+key=None
+verbose=False
+
+def return_erratas(channel, errataType=None, minDate=None, maxDate=None):
+    """returns a list of erratas with id, name, packages, update date"""
+    #creating an errata object may make comparisons easier and may make this a lot better. consider...
+    pass
+
+def main(version):
+    import optparse
+    global URL
+    global client
+    global key
+    global verbose
+    parser = optparse.OptionParser("Usage: %prog [options]\nThis program will clone all erratas from the source to the destination as long as they are not already present in the destiation",version=version)
+    parser.add_option("-u", "--user", dest="user", type="string", help="User to connect to satellite")
+    parser.add_option("-p", "--password", dest="password", type="string", help="Password to connect to satellite")
+    parser.add_option("-c", "--destChannel", dest="destChannel", default=None, type="string", help="Label of the destination channel to parse. Must exist.")
+    parser.add_option("-s", "--sourceChannel", dest="sourceChannel", default=None, type="string", help="Label of the source channel to clone from")
+    parser.add_option("-H", "--host", dest="host", type="string", default="127.0.0.1", help="Satellite hostname or ip - defaults to %default")
+    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Turns up the verbosity")
+    parser.add_option("--listChannels", dest="listChannels", action="store_true", default=False, help="List all the channels")
+    parser.add_option("--listErratas", dest="listErratas", action="store_true", default=False, help="Lists all the erratas of the source.")
+    parser.add_option("--errataType", dest="errataType", default=None, type="string", help="The type of errata to display - one of 'Security Advisory', 'Product Enhancement Advisory', 'Bug Fix Advisory' ")
+    parser.add_option("--maxDate",dest="maxDate", default=None, type="string", help="Maximum update date for the erratas to be included (YYYY-MM-DD HH24:MI:SS)")
+    parser.add_option("--minDate",dest="minDate", default=None, type="string", help="Minimum update date for the erratas to be included (YYYY-MM-DD HH24:MI:SS)")
+    (options, args) = parser.parse_args()
+    verbose = options.verbose
+    URL="http://%s/rpc/api" % options.host
+
+    if not options.user or not  options.password:
+        parser.error('username and password are required options.')
+    else:
+        #init
+        client = xmlrpclib.Server(URL)
+        key = client.auth.login(options.user,options.password)
+        if options.listChannels :
+            print " %40s | %10s | %20s | %s " % ("Label", "Arch", "Provider", "Name")
+            for channel in client.channel.listAllChannels(key):
+                print " %40s | %10s | %20s | %s " % (channel['label'], channel['arch_name'],  channel['provider'], channel['name'])
+        elif options.listErratas:
+            if options.sourceChannel == None:
+                parser.error('Need to specify the source channel when listing the erratas')
+            else:
+                print " %30s | %30s | %22s | %s" % ("Errata", "Type", "Update date", "Synopsis")
+                #TODO: add support for filtering here
+                for errata in client.channel.software.listErrata(key,options.sourceChannel):
+                    print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['update_date'], errata['advisory_synopsis'])
+        elif options.sourceChannel != None and options.destChannel != None:
+            #TODO: determine which filters are in use and use appropriate functoin depending on which usecase.
+            #TODO: step 1 get erratas to filter step 2 get all erratas from destination step 3 clone if not already in destination. only relevant packages, which are in the source, should be copied.
+        else:
+            parser.error("unable to determine what to do - use -h for usage information")
+
+        client.auth.logout(key)
+
+if __name__ == "__main__":
+    main(__version__)
+
