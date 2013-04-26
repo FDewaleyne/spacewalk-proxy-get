@@ -7,7 +7,7 @@
 __author__ = "Felix Dewaleyne"
 __credits__ = ["Felix Dewaleyne"]
 __license__ = "GPL"
-__version__ = "0.1"
+__version__ = "0.2"
 __maintainer__ = "Felix Dewaleyne"
 __email__ = "fdewaley@redhat.com"
 __status__ = "test"
@@ -21,11 +21,53 @@ client=None
 key=None
 verbose=False
 
-def return_erratas(channel, errataType=None, minDate=None, maxDate=None):
-    """returns a list of erratas with id, name, packages, update date"""
-    #creating an errata object may make comparisons easier and may make this a lot better. consider...
-    pass
+class RHNSConnection:
 
+    username = None
+    host = None
+    key = None
+    client = None
+    closed = False
+
+    def __init__(self,username,password,host):
+        """connects to the satellite db with given parameters"""
+        URL = "https://%s/rpc/api" % host
+        self.client = xmlrpclib.Server(URL)
+        self.key = client.auth.login(username,password)
+        self.usernams = username
+        self.host = host
+        pass
+
+    def close(self):
+        """closes a connection. item can be destroyed then"""
+        self.client.auth.logout(self.key)
+        self.closed = True
+        pass
+
+    def __exit__(self):
+        """closes connection on exit"""
+        if not self.closed :
+            self.client.auth.logout(self.key)
+        pass
+
+
+class RHNSErrata:
+
+    packages=[]
+    advisory_name=None
+    advisory_synopsis=None
+    issue_date=None
+
+    def __init__(self,connection):
+        """__init__ function, should populate the object with all the elements of the errata."""
+        pass
+
+    def __cmp__(self):
+        """comparison function, tells if the items are the same or not."""
+        pass
+
+
+#the main function of the program
 def main(version):
     import optparse
     global URL
@@ -46,17 +88,15 @@ def main(version):
     parser.add_option("--minIssueDate",dest="minIssueDate", default=None, type="string", help="Minimum issue date for the erratas to be included (YYYY-MM-DD HH24:MI:SS)")
     (options, args) = parser.parse_args()
     verbose = options.verbose
-    URL="http://%s/rpc/api" % options.host
 
     if not options.user or not  options.password:
         parser.error('username and password are required options.')
     else:
         #init
-        client = xmlrpclib.Server(URL)
-        key = client.auth.login(options.user,options.password)
+        co = RHNSConnection(options.user,options.password,options.host)
         if options.listChannels :
             print " %40s | %10s | %20s | %s " % ("Label", "Arch", "Provider", "Name")
-            for channel in client.channel.listAllChannels(key):
+            for channel in co.client.channel.listAllChannels(co.key):
                 print " %40s | %10s | %20s | %s " % (channel['label'], channel['arch_name'],  channel['provider'], channel['name'])
         elif options.listErratas:
             if options.sourceChannel == None:
@@ -64,7 +104,7 @@ def main(version):
             else:
                 print " %30s | %30s | %22s | %s" % ("Errata", "Type", "Update date", "Synopsis")
                 #TODO: add support for filtering here
-                for errata in client.channel.software.listErrata(key,options.sourceChannel):
+                for errata in co.client.channel.software.listErrata(co.key,options.sourceChannel):
                     print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement
         elif options.sourceChannel != None and options.destChannel != None:
             #TODO: determine which filters are in use and use appropriate functoin depending on which usecase.
