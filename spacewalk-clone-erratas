@@ -12,8 +12,7 @@ __maintainer__ = "Felix Dewaleyne"
 __email__ = "fdewaley@redhat.com"
 __status__ = "test"
 
-# offers to list all packages that are not signed with a specific key, tries to change them to a NVREA identical package of the right signature, when possible
-# this script doesn't remove any package from the database, only from channels.
+# used to compare the contents of two channels errata wise and copy erratas that meet a specific criteria
 
 import xmlrpclib, warnings
 URL=None
@@ -58,14 +57,27 @@ class RHNSErrata:
     advisory_synopsis=None
     issue_date=None
 
-    def __init__(self,connection):
+    def __init__(self,connection, errata_info):
         """__init__ function, should populate the object with all the elements of the errata."""
+        #errata_info sould be the same as the information present from the channel. it should otherwise be an errata name, and then will be looked up
+        if type (errata_info ) == str:
+            advisory_info = connection.client.errata.getDetails(connection.key, errata_info)
+            self.advisory_name = errata_info
+            self.advisory_synopsis = advisory_info['synopsis']
+            self.issue_date = advisory_info['issue_date']
+        elif type (errata_info) == dict:
+            pass #TODO replace with checks if this is called with an errata from a channel
+        else:
+            pass #TODO replace with raising an exception here
         pass
 
-    def __cmp__(self):
-        """comparison function, tells if the items are the same or not."""
+    def __eq__(self, other):
+        """compare two erratas and tells if they are the same based on the packages they contain"""
         pass
 
+    def __ne__(self, other):
+        """compare two erratas - mirror of eq"""
+        pass
 
 #the main function of the program
 def main(version):
