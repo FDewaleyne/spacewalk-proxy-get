@@ -55,7 +55,9 @@ class RHNSErrata:
     packages=[]
     advisory_name=None
     advisory_synopsis=None
+    advisory_type=None
     issue_date=None
+    update_date=None
 
     def __init__(self,connection, errata_info):
         """__init__ function, should populate the object with all the elements of the errata."""
@@ -64,9 +66,16 @@ class RHNSErrata:
             advisory_info = connection.client.errata.getDetails(connection.key, errata_info)
             self.advisory_name = errata_info
             self.advisory_synopsis = advisory_info['synopsis']
+            self.advisory_type = advisory_info['type']
             self.issue_date = advisory_info['issue_date']
+            self.update_date = advisory_info['update_date']
         elif type (errata_info) == dict:
-            pass #TODO replace with checks if this is called with an errata from a channel
+            #would only have elements id, date, update_date, advisory_synopsis, advisory_type, advisory_name
+            self.advisory_name = errata_info['advisory_name']
+            self.advisory_synopsis = errata_info['advisory_synopsis']
+            self.avisory_type = errata_info['advisory_type']
+            self.issue_date = errata_info['date']
+            self.update_date = errata_info['update_date']
         else:
             pass #TODO replace with raising an exception here
         pass
