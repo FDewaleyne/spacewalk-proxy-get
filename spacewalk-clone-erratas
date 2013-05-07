@@ -140,7 +140,9 @@ class RHNSErrata:
             self.update_date = errata_info['update_date']
         else:
             pass #TODO replace with raising an exception here
-        pass
+        for apackage in connection.client.errata.listPackages(connection.key, self.advisory_name):
+            self.packages.append(RHNSPackage(connection, apackage))
+        self.packages.sort()
 
     def __eq__(self, other):
         """compare two erratas and tells if they are the same based on the packages they contain"""
