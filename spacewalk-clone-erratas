@@ -50,6 +50,68 @@ class RHNSConnection:
         pass
 
 
+class RHNSChannel:
+
+    label = None
+    erratas = []
+    packages = []
+
+    def __init__(self, connection, alabel):
+        """populares the object with the data from the channel"""
+        self.label = alabel
+        for anerrata in connection.client.software.channel.listErrata(connection.key, alabel):
+            self.erratas.append( RHNSErrata(connection, anerrata) )
+        for apackage in connection.client.software.channel.listAllPackages(connection.key, alabel):
+            self.packages.append( RHNSPackage(connection, apackage) )
+        self.packages.sort()
+        self.erratas.sort()
+        pass
+
+    def __eq__(self, other):
+        """compare channels"""
+        if self.packages == other.packages:
+            return True
+        else:
+            return False
+        pass
+
+class RHNSPackage:
+
+    name = None
+    version = None
+    release = None
+    epoch = None
+    arch = None
+    packageId = None
+    checksum = None
+    checksum_type = None
+    last_modified_date = None
+
+    def __init__(self, connection, package_info):
+        """populates a package object"""
+        if type(package_info) == dict:
+            self.name = package_info['name']
+            self.version = package_info['version']
+            self.release = package_info['release']
+            self.epoch = package_info['epoch']
+            self.arch = package_info['arch_label']
+            self.packageId = package_info['id']
+            self.checksum = package_info['checksum']
+            self.checksum_type = pacakge_info['checksum_type']
+            self.last_modified_date = package_info['last_modified_date']
+        elif type(package_info) == int:
+            infos = connection.client.packages.getDetails(connection.key, package_info)
+            self.name = infos['name']
+            self.version = infos['version']
+            self.release = infos['release']
+            self.epoch = infos['epoch']
+            self.arch = infos['arch_label']
+            self.packageId = infos['id']
+            self.checksum = infos['checksum']
+            self.checksum_type = infos['checksum_type']
+            self.last_modified_date = infos['last_modified_date']
+        pass
+
 class RHNSErrata:
 
     packages=[]
@@ -83,13 +145,6 @@ class RHNSErrata:
     def __eq__(self, other):
         """compare two erratas and tells if they are the same based on the packages they contain"""
         if self.advisory_name == other.advisory_name and self.packages == other.packages:
-            return True
-        else:
-            return False
-
-    def __ne__(self, other):
-        """compare two erratas - mirror of eq"""
-        if self.advisory_name != other.advisory_name and self.packages != other.packages:
             return True
         else:
             return False
