@@ -82,11 +82,17 @@ class RHNSErrata:
 
     def __eq__(self, other):
         """compare two erratas and tells if they are the same based on the packages they contain"""
-        pass
+        if self.advisory_name == other.advisory_name and self.packages == other.packages:
+            return True
+        else:
+            return False
 
     def __ne__(self, other):
         """compare two erratas - mirror of eq"""
-        pass
+        if self.advisory_name != other.advisory_name and self.packages != other.packages:
+            return True
+        else:
+            return False
 
 #the main function of the program
 def main(version):
