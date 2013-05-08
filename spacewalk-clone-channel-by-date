@@ -77,8 +77,15 @@ class RHNSChannel:
     
     def compare(self, other):
         """compares erratas and packages, returns a list of packages and erratas to add"""
-        #compare the list of
-        pass
+        addpackages = []
+        adderratas = []
+        for apackage in other.packages:
+            if apackage in self.packages:
+                addpackages.append(apackage)
+        for anerrata in other.erratas:
+            if anerrata in self.erratas:
+                adderratas.append(anerrata)
+        return (adderratas, addpackages)
 
 class RHNSPackage:
 
