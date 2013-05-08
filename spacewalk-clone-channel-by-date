@@ -12,7 +12,7 @@ __maintainer__ = "Felix Dewaleyne"
 __email__ = "fdewaley@redhat.com"
 __status__ = "test"
 
-# used to compare the contents of two channels errata wise and copy erratas that meet a specific criteria
+# copies  erratas and packages based on the date  use in the options
 
 import xmlrpclib, warnings
 URL=None
@@ -73,6 +73,11 @@ class RHNSChannel:
             return True
         else:
             return False
+        pass
+    
+    def compare(self, other):
+        """compares erratas and packages, returns a list of packages and erratas to add"""
+        #compare the list of
         pass
 
 class RHNSPackage:
@@ -169,19 +174,22 @@ def main(version):
     parser = optparse.OptionParser("Usage: %prog [options]\nThis program will clone all erratas from the source to the destination as long as they are not already present in the destiation",version=version)
     parser.add_option("-u", "--user", dest="user", type="string", help="User to connect to satellite")
     parser.add_option("-p", "--password", dest="password", type="string", help="Password to connect to satellite")
-    parser.add_option("-c", "--destChannel", dest="destChannel", default=None, type="string", help="Label of the destination channel to parse. Must exist.")
+    parser.add_option("-c", "--destChannel", dest="destChannel", default=None, type="string", help="Label of the destination channel to parse. Will be created if doesn't exist")
     parser.add_option("-s", "--sourceChannel", dest="sourceChannel", default=None, type="string", help="Label of the source channel to clone from")
     parser.add_option("-H", "--host", dest="host", type="string", default="127.0.0.1", help="Satellite hostname or ip - defaults to %default")
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Turns up the verbosity")
     parser.add_option("--listChannels", dest="listChannels", action="store_true", default=False, help="List all the channels")
     parser.add_option("--listErratas", dest="listErratas", action="store_true", default=False, help="Lists all the erratas of the source.")
     parser.add_option("--errataType", dest="errataType", default=None, type="string", help="The type of errata to display - one of 'Security Advisory', 'Product Enhancement Advisory', 'Bug Fix Advisory' ")
-    parser.add_option("--maxIssueDate",dest="maxIssueDate", default=None, type="string", help="Maximum issue date for the erratas to be included (YYYY-MM-DD HH24:MI:SS)")
-    parser.add_option("--minIssueDate",dest="minIssueDate", default=None, type="string", help="Minimum issue date for the erratas to be included (YYYY-MM-DD HH24:MI:SS)")
+    parser.add_option("--maxIssueDate",dest="maxIssueDate", default=None, type="string", help="Maximum issue date for the erratas and packages to be included (YYYY-MM-DD HH24:MI:SS)")
+    parser.add_option("--maxUpdateDate" dest="maxUpdateDate", default=None, type="string", help="Maximum update date for the erratas and packages to be included (YYYY-MM-DD H24:MI:SS)")
+    parser.add_option("--onlyErratas", dest="onlyErratas", default=False, action="store_true", help="only process erratas")
+    parser.add_option("--onlyPackages", dest="onlyPackages", default=False, action="store_true", help="only process packages")
+    parser.add_option("-C", "--clean-channel", dest="cleanChannel", default=False, action="store_true", help="clean the destination channel before starting")
     (options, args) = parser.parse_args()
     verbose = options.verbose
 
-    if not options.user or not  options.password:
+    if not options.user or not options.password:
         parser.error('username and password are required options.')
     else:
         #init
@@ -201,6 +209,10 @@ def main(version):
         elif options.sourceChannel != None and options.destChannel != None:
             #TODO: determine which filters are in use and use appropriate functoin depending on which usecase.
             #TODO: step 1 get erratas to filter step 2 get all erratas from destination step 3 clone if not already in destination. only relevant packages, which are in the source, should be copied.
+            if options.maxIssueDate != None or options.maxUpdateDate != None:
+                #run with options to control the dates of packages chosen
+            else:
+                #normal run
         else:
             parser.error("unable to determine what to do - use -h for usage information")
 
