@@ -54,10 +54,11 @@ class RHNSChannel:
 
     label = None
     erratas = []
-    packages = []
+    #TODO: change for dict types
+    packages = [] 
 
     def __init__(self, connection, alabel):
-        """populares the object with the data from the channel"""
+        """populates the object with the data from the channel"""
         self.label = alabel
         for anerrata in connection.client.software.channel.listErrata(connection.key, alabel):
             self.erratas.append( RHNSErrata(connection, anerrata) )
