@@ -7,7 +7,7 @@
 __author__ = "Felix Dewaleyne"
 __credits__ = ["Felix Dewaleyne"]
 __license__ = "GPL"
-__version__ = "0.2"
+__version__ = "0.5"
 __maintainer__ = "Felix Dewaleyne"
 __email__ = "fdewaley@redhat.com"
 __status__ = "test"
@@ -53,39 +53,36 @@ class RHNSConnection:
 class RHNSChannel:
 
     label = None
-    erratas = []
-    #TODO: change for dict types
-    packages = [] 
+    erratas = {}
+    packages = {}
 
     def __init__(self, connection, alabel):
         """populates the object with the data from the channel"""
         self.label = alabel
         for anerrata in connection.client.software.channel.listErrata(connection.key, alabel):
-            self.erratas.append( RHNSErrata(connection, anerrata) )
+            theerrata = RHNSErrata(connection, anerrata)
+            self,erratas[theerrata['id']] = theerrata
         for apackage in connection.client.software.channel.listAllPackages(connection.key, alabel):
-            self.packages.append( RHNSPackage(connection, apackage) )
-        self.packages.sort()
-        self.erratas.sort()
+            thepackage = RHNSPackage(connection, apackage)
+            self.packages[thepackage['id'] = thepackage
         pass
 
     def __eq__(self, other):
         """compare channels"""
-        if self.packages == other.packages:
-            return True
-        else:
-            return False
+        addpackages, adderratas = compare(self, other)
+
         pass
     
     def compare(self, other):
         """compares erratas and packages, returns a list of packages and erratas to add"""
-        addpackages = []
-        adderratas = []
-        for apackage in other.packages:
-            if apackage in self.packages:
-                addpackages.append(apackage)
-        for anerrata in other.erratas:
-            if anerrata in self.erratas:
-                adderratas.append(anerrata)
+        addpackages = {}
+        adderratas = {}
+        for other_key in other.packages.iterkeys():
+            if not other_key in self.packages.keys():
+                addpackages[other_key] = other.packages[other_key]
+        for other_key in other.erratas.iterkeys():
+            if not other_key in self.erratas.keys()
+                adderratas[other_key] = other.erratas[other_key]
         return (adderratas, addpackages)
 
 class RHNSPackage:
@@ -135,7 +132,7 @@ class RHNSPackage:
 
 class RHNSErrata:
 
-    packages=[]
+    packages={}
     advisory_name=None
     advisory_synopsis=None
     advisory_type=None
@@ -162,8 +159,8 @@ class RHNSErrata:
         else:
             pass #TODO replace with raising an exception here
         for apackage in connection.client.errata.listPackages(connection.key, self.advisory_name):
-            self.packages.append(RHNSPackage(connection, apackage))
-        self.packages.sort()
+            thepackage = RHNSPackate(connection,apackage)
+            self.packages[thepackage['id']] = thepackage
 
     def __eq__(self, other):
         """compare two erratas and tells if they are the same based on the packages they contain"""
