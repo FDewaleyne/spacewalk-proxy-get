@@ -13,6 +13,7 @@ __email__ = "fdewaley@redhat.com"
 __status__ = "test"
 
 # copies  erratas and packages based on the date  use in the options
+# meant to run on python 2.7 at least (RHEL6+)
 
 import xmlrpclib, warnings
 URL=None
