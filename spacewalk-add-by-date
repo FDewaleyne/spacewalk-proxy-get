@@ -61,29 +61,51 @@ class RHNSChannel:
         self.label = alabel
         for anerrata in connection.client.software.channel.listErrata(connection.key, alabel):
             theerrata = RHNSErrata(connection, anerrata)
-            self,erratas[theerrata['id']] = theerrata
+            self,erratas[theerrata.advisory_name] = theerrata
         for apackage in connection.client.software.channel.listAllPackages(connection.key, alabel):
             thepackage = RHNSPackage(connection, apackage)
-            self.packages[thepackage['id'] = thepackage
+            self.packages[thepackage.packageid] = thepackage
         pass
 
-    def __eq__(self, other):
-        """compare channels"""
-        addpackages, adderratas = compare(self, other)
-
-        pass
-    
-    def compare(self, other):
-        """compares erratas and packages, returns a list of packages and erratas to add"""
+    def buildLists(self, other, issuedatemax=None, updatedatemax=None, erratatype=None):
+        """compares erratas and packages, returns a list of packages and erratas to add. syncType 1 : normal date"""
         addpackages = {}
         adderratas = {}
-        for other_key in other.packages.iterkeys():
-            if not other_key in self.packages.keys():
-                addpackages[other_key] = other.packages[other_key]
+        #compare packages only if no errata type was given
+        if not errata_type == None:
+            if issuedatemax == None and updatedatemax == None:
+                packagedatemax = None
+            elif updatedatemax == None or issuedatemax == None:
+                if updatedatemax == None:
+                    packagedatemax = issuedatemax
+                else:
+                    packagedatemax = updatedatemax
+            elif issuedatemax > updatedatemax:
+                packagedatemax = issuedatemax
+            else:
+                #this means updatedatemax is either bigger or equal to issuedatemax
+                packagedatemax = updatedatemax
+            for other_key in other.packages.iterkeys():
+                if not other_key in self.packages.keys():
+                    if packagedatemax == None:
+                        addpackages[other_key] = other.packages[other_key]
+                    elif packagedatemax >= other.packages[other_key].last_modified_date:
+                        addpackages[other_key] = other.packages[other_key]
+        else:
+            print "Errata type given - not comparing packages, only erratas"
         for other_key in other.erratas.iterkeys():
-            if not other_key in self.erratas.keys()
-                adderratas[other_key] = other.erratas[other_key]
+            if erratatype == None or erratatype == other.erratas[other_key].advisory_type:
+                if not other_key in self.erratas.keys():
+                    if issuedatemax == None and updatedatemax == None: 
+                        adderratas[other_key] = other.erratas[other_key]
+                    elif updatedatemax == None and issuedatemax > other.erratas[other_key].issue_date:
+                        adderratas[other_key] = other.erratas[other_key]
+                    elif issuedatemax == None and updatedatemax > other.erratas[other_key].update_date:
+                        adderratas[other_key] = other.erratas[other_key]
+                    elif updatedatemax >= other.erratas[other_key].update_date or issuedatemax >= other.erratas[other_key].issue_date:
+                        adderratas[other_key] = other.erratas[other_key]
         return (adderratas, addpackages)
+
 
 class RHNSPackage:
 
@@ -92,7 +114,7 @@ class RHNSPackage:
     release = None
     epoch = None
     arch = None
-    packageId = None
+    packageid = None
     checksum = None
     checksum_type = None
     last_modified_date = None
@@ -105,7 +127,7 @@ class RHNSPackage:
             self.release = package_info['release']
             self.epoch = package_info['epoch']
             self.arch = package_info['arch_label']
-            self.packageId = package_info['id']
+            self.packageid = package_info['id']
             self.checksum = package_info['checksum']
             self.checksum_type = pacakge_info['checksum_type']
             self.last_modified_date = package_info['last_modified_date']
@@ -116,7 +138,7 @@ class RHNSPackage:
             self.release = infos['release']
             self.epoch = infos['epoch']
             self.arch = infos['arch_label']
-            self.packageId = infos['id']
+            self.packageid = infos['id']
             self.checksum = infos['checksum']
             self.checksum_type = infos['checksum_type']
             self.last_modified_date = infos['last_modified_date']
@@ -177,11 +199,11 @@ def main(version):
     global key
     global verbose
     parser = optparse.OptionParser("Usage: %prog [options]\nThis program will clone all erratas from the source to the destination as long as they are not already present in the destiation",version=version)
-    parser.add_option("-u", "--user", dest="user", type="string", help="User to connect to satellite")
-    parser.add_option("-p", "--password", dest="password", type="string", help="Password to connect to satellite")
+    parser.add_option("-u", "--url", dest="saturl", type="string", help="url or hostname of the satellite to use e.g. http://satellite.example.com/rpc/api", default="https://127.0.0.1/rpc/api")
+    parser.add_option("-l", "--login", dest="satuser", type="string", help="User to connect to satellite")
+    parser.add_option("-p", "--password", dest="satpwd", type="string", help="Password to connect to satellite")
     parser.add_option("-c", "--destChannel", dest="destChannel", default=None, type="string", help="Label of the destination channel to parse. Will be created if doesn't exist")
     parser.add_option("-s", "--sourceChannel", dest="sourceChannel", default=None, type="string", help="Label of the source channel to clone from")
-    parser.add_option("-H", "--host", dest="host", type="string", default="127.0.0.1", help="Satellite hostname or ip - defaults to %default")
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Turns up the verbosity")
     parser.add_option("--listChannels", dest="listChannels", action="store_true", default=False, help="List all the channels")
     parser.add_option("--listErratas", dest="listErratas", action="store_true", default=False, help="Lists all the erratas of the source.")
@@ -194,11 +216,11 @@ def main(version):
     (options, args) = parser.parse_args()
     verbose = options.verbose
 
-    if not options.user or not options.password:
+    if not options.satuser or not options.password:
         parser.error('username and password are required options.')
     else:
         #init
-        co = RHNSConnection(options.user,options.password,options.host)
+        co = RHNSConnection(options.satuser,options.satpwd,options.saturl)
         if options.listChannels :
             print " %40s | %10s | %20s | %s " % ("Label", "Arch", "Provider", "Name")
             for channel in co.client.channel.listAllChannels(co.key):
