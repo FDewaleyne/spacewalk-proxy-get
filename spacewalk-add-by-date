@@ -67,32 +67,39 @@ class RHNSChannel:
             self.packages[thepackage.packageid] = thepackage
         pass
 
-    def buildLists(self, other, issuedatemax=None, updatedatemax=None, erratatype=None):
-        """compares erratas and packages, returns a list of packages and erratas to add. syncType 1 : normal date"""
-        addpackages = {}
-        adderratas = {}
+    def buildLists(self, other, issuedatemax=None, updatedatemax=None):
+        """compares erratas and packages, returns a list of packages and erratas to add"""
         #compare packages only if no errata type was given
-        if not errata_type == None:
-            if issuedatemax == None and updatedatemax == None:
-                packagedatemax = None
-            elif updatedatemax == None or issuedatemax == None:
-                if updatedatemax == None:
-                    packagedatemax = issuedatemax
-                else:
-                    packagedatemax = updatedatemax
-            elif issuedatemax > updatedatemax:
+        addpackages = buildPackagesList(self, other, issuedatemax, updatedatemax)
+        adderratas = buildErratasList(selth, other, issuedatemax, updatedatemax)
+        return (adderratas, addpackages)
+    
+    def buildPackagesList(self, other, issuedatemax=None, updatedatemax=None):
+        """runs the comparison for the packages"""
+        addpackages = {}
+        if issuedatemax == None and updatedatemax == None:
+            packagedatemax = None
+        elif updatedatemax == None or issuedatemax == None:
+            if updatedatemax == None:
                 packagedatemax = issuedatemax
             else:
-                #this means updatedatemax is either bigger or equal to issuedatemax
                 packagedatemax = updatedatemax
-            for other_key in other.packages.iterkeys():
-                if not other_key in self.packages.keys():
-                    if packagedatemax == None:
-                        addpackages[other_key] = other.packages[other_key]
-                    elif packagedatemax >= other.packages[other_key].last_modified_date:
-                        addpackages[other_key] = other.packages[other_key]
+        elif issuedatemax > updatedatemax:
+            packagedatemax = issuedatemax
         else:
-            print "Errata type given - not comparing packages, only erratas"
+            #this means updatedatemax is either bigger or equal to issuedatemax
+            packagedatemax = updatedatemax
+        for other_key in other.packages.iterkeys():
+            if not other_key in self.packages.keys():
+                if packagedatemax == None:
+                    addpackages[other_key] = other.packages[other_key]
+                elif packagedatemax >= other.packages[other_key].last_modified_date:
+                    addpackages[other_key] = other.packages[other_key]
+        return addpackages
+
+    def buildErratasList(self, other, issuedatemax=None, updatedatemax=None):
+        """runs the errata comparison"""
+        adderratas = {}
         for other_key in other.erratas.iterkeys():
             if erratatype == None or erratatype == other.erratas[other_key].advisory_type:
                 if not other_key in self.erratas.keys():
@@ -104,7 +111,7 @@ class RHNSChannel:
                         adderratas[other_key] = other.erratas[other_key]
                     elif updatedatemax >= other.erratas[other_key].update_date or issuedatemax >= other.erratas[other_key].issue_date:
                         adderratas[other_key] = other.erratas[other_key]
-        return (adderratas, addpackages)
+        return adderratas
 
 
 class RHNSPackage:
