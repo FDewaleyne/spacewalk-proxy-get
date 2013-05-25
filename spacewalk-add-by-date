@@ -7,7 +7,7 @@
 __author__ = "Felix Dewaleyne"
 __credits__ = ["Felix Dewaleyne"]
 __license__ = "GPL"
-__version__ = "0.5"
+__version__ = "0.7"
 __maintainer__ = "Felix Dewaleyne"
 __email__ = "fdewaley@redhat.com"
 __status__ = "test"
@@ -245,7 +245,7 @@ def main(version):
                 for errata in co.client.channel.software.listErrata(co.key,options.sourceChannel):
                     print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement
         elif options.sourceChannel != None and options.destChannel != None:
-            #TODO: determine which filters are in use and use appropriate functoin depending on which usecase.
+            #TODO: determine which filters are in use and use appropriate function depending on which usecase.
             #TODO: step 1 get erratas to filter step 2 get all erratas from destination step 3 clone if not already in destination. only relevant packages, which are in the source, should be copied.
             if options.maxIssueDate != None or options.maxUpdateDate != None:
                 #run with options to control the dates of packages chosen
