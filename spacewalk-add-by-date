@@ -15,11 +15,7 @@ __status__ = "test"
 # copies  erratas and packages based on the date  use in the options
 # meant to run on python 2.7 at least (RHEL6+)
 
-import xmlrpclib, warnings
-URL=None
-client=None
-key=None
-verbose=False
+import xmlrpclib, warnings, re
 
 class RHNSConnection:
 
@@ -223,12 +219,19 @@ def main(version):
     parser.add_option("-C", "--clean-channel", dest="cleanChannel", default=False, action="store_true", help="clean the destination channel before starting")
     (options, args) = parser.parse_args()
     verbose = options.verbose
-
-    if not options.satuser or not options.password:
+    #transformation of saturl into a full url if only given the hostname or an ip adress
+    if re.match('^http(s)?://[\w\-.]+/rpc/api',options.saturl) == None:
+        if re.search('^http(s)?://', options.saturl) == None:
+            saturl = "https://"+options.saturl
+        else:
+            saturl = options.saturl
+        if re.search('/rpc/api$', saturl) == None:
+            saturl = saturl+"/rpc/api"
+    if not options.satuser or not options.satpwd:
         parser.error('username and password are required options.')
     else:
         #init
-        co = RHNSConnection(options.satuser,options.satpwd,options.saturl)
+        co = RHNSConnection(options.satuser,options.satpwd,saturl)
         if options.listChannels :
             print " %40s | %10s | %20s | %s " % ("Label", "Arch", "Provider", "Name")
             for channel in co.client.channel.listAllChannels(co.key):
