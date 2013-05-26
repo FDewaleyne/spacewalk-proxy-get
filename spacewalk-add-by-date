@@ -126,14 +126,14 @@ class RHNSChannel:
     def addErratas(self, connection, erratas={}):
         """add the erratas to the channel"""
         #clones the erratas as Originals and ends when all is copied.
-        connection.client.errata.cloneAsOriginal(connection.key, self.label, erratas.keys())
-        pass
+        #returns the erratas cloned according to the api.
+        return connection.client.errata.cloneAsOriginal(connection.key, self.label, erratas.keys())
 
     def addPackages(self, connection, packages={}):
         """add the packages to the channel"""
         #adds all listed packages to the channel
-        connection.client.channel.software.addPackages(connection.key, self.label, packages.keys())
-        pass
+        return connection.client.channel.software.addPackages(connection.key, self.label, packages.keys())
+        
 
 class RHNSPackage:
 
@@ -289,8 +289,9 @@ def main(versioninfo):
                 #code to handle erratas comparison
                 print "Comparing the erratas between "+source.label"+ and "+destination.label
                 erratalist = destination.buildErrataList(source, options.maxIssueDate, options.maxUpdateDate)
-                print "Adding "+str(len(erratalist))+" erratas to "+destination.label
-                destination.addErratas(co, erratalist)
+                print "Clonning "+str(len(erratalist))+" erratas to "+destination.label
+                added = destination.addErratas(co, erratalist)
+                print "Cloned "+str(len(added))+" erratas to the new channel"
             if not options.onlyErratas:
                 #code to handle package comparison
                 if not options.onlyPackages:
