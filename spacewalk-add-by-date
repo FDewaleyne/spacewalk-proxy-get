@@ -58,7 +58,7 @@ class RHNSChannel:
         self.label = alabel
         for anerrata in connection.client.software.channel.listErrata(connection.key, alabel):
             theerrata = RHNSErrata(connection, anerrata)
-            self,erratas[theerrata.advisory_name] = theerrata
+            self.erratas[theerrata.advisory_name] = theerrata
         for apackage in connection.client.software.channel.listAllPackages(connection.key, alabel):
             thepackage = RHNSPackage(connection, apackage)
             self.packages[thepackage.packageid] = thepackage
@@ -112,6 +112,14 @@ class RHNSChannel:
 
     def refresh(self, connection):
         """refresh the content of the channel (errata and package lists)"""
+        self.packages.clear()
+        self.erratas.clear()
+        for anerrata in connection.client.software.channel.listErrata(connection.key, self.label):
+            theerrata = RHNSErrata(connection, anerrata)
+            self.erratas[theerrata.advisory_name] = theerrata
+        for apackage in connection.client.software.channel.listAllPackages(connection.key, self.label):
+            thepackage = RHNSPackage(connection, apackage)
+            self.packages[thepackage.packageid] = thepackage
         pass
 
     def addErratas(self, connection, erratas={}):
