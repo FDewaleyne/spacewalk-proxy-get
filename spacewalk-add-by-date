@@ -112,6 +112,7 @@ class RHNSChannel:
 
     def refresh(self, connection):
         """refresh the content of the channel (errata and package lists)"""
+        #clear the content of the lists, then refresh them all
         self.packages.clear()
         self.erratas.clear()
         for anerrata in connection.client.software.channel.listErrata(connection.key, self.label):
