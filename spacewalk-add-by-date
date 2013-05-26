@@ -110,6 +110,17 @@ class RHNSChannel:
                         adderratas[other_key] = other.erratas[other_key]
         return adderratas
 
+    def refresh(self, connection):
+        """refresh the content of the channel (errata and package lists)"""
+        pass
+
+    def addErratas(self, connection, erratas={}):
+        """add the erratas to the channel"""
+        pass
+
+    def addPackages(self, connection, packages={}):
+        """add the packages to the channel"""
+        pass
 
 class RHNSPackage:
 
@@ -209,8 +220,8 @@ def main(versioninfo):
     parser.add_option("--listChannels", dest="listChannels", action="store_true", default=False, help="List all the channels")
     parser.add_option("--listErratas", dest="listErratas", action="store_true", default=False, help="Lists all the erratas of the source.")
     parser.add_option("--errataType", dest="errataType", type="string", help="The type of errata to display - one of 'Security Advisory', 'Product Enhancement Advisory', 'Bug Fix Advisory' ")
-    parser.add_option("--maxIssueDate",dest="maxIssueDate", type="string", help="Maximum issue date for the erratas and packages to be included (YYYY-MM-DD HH24:MI:SS)")
-    parser.add_option("--maxUpdateDate" dest="maxUpdateDate", type="string", help="Maximum update date for the erratas and packages to be included (YYYY-MM-DD H24:MI:SS)")
+    parser.add_option("--maxIssueDate",dest="maxIssueDate", default=None, type="datetime", help="Maximum issue date for the erratas and packages to be included (YYYY-MM-DD HH24:MI:SS)")
+    parser.add_option("--maxUpdateDate" dest="maxUpdateDate", default=None, type="datetime", help="Maximum update date for the erratas and packages to be included (YYYY-MM-DD H24:MI:SS)")
     parser.add_option("--onlyErratas", dest="onlyErratas", default=False, action="store_true", help="only process erratas")
     parser.add_option("--onlyPackages", dest="onlyPackages", default=False, action="store_true", help="only process packages")
     parser.add_option("-C", "--clean-channel", dest="cleanChannel", default=False, action="store_true", help="clean the destination channel before starting")
@@ -255,13 +266,20 @@ def main(versioninfo):
             packagelist={}
             if not options.onlyPackages:
                 #code to handle erratas comparison
-                erratalist = source.buildErrataList
+                print "Comparing the erratas between "+source.label"+ and "+destination.label
+                erratalist = destination.buildErrataList(source, options.maxIssueDate, options.maxUpdateDate)
+                print "Adding "+str(len(erratalist))+" erratas to "+destination.label
+                destination.addErratas(co, erratalist)
             if not options.onlyErratas:
                 #code to handle package comparison
-            if options.maxIssueDate != None or options.maxUpdateDate != None:
-                #run with options to control the dates of packages chosen
-            else:
-                #normal run
+                if not options.onlyPackages:
+                    #refresh the list of packages since we synced the erratas!
+                    destination.refresh(connection)
+                print "Comparing the packages between "+source.label" and "+destination.label
+                packagelist = destination.buildPackageList(source, options.maxIssueDate, options.maxUpdateDate)
+                print "Adding "+str(len(packagelist))+" packages to "+destination.label
+                destination.addPackages(co, packagelist)
+            print "Done"
         else:
             parser.error("unable to determine what to do - use -h for usage information")
 
