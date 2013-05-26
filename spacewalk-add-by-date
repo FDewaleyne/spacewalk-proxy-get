@@ -211,7 +211,7 @@ def main(version):
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Turns up the verbosity")
     parser.add_option("--listChannels", dest="listChannels", action="store_true", default=False, help="List all the channels")
     parser.add_option("--listErratas", dest="listErratas", action="store_true", default=False, help="Lists all the erratas of the source.")
-    parser.add_option("--errataType", dest="errataType", default=None, type="string", help="The type of errata to display - one of 'Security Advisory', 'Product Enhancement Advisory', 'Bug Fix Advisory' ")
+    parser.add_option("--errataType", dest="errataType", type="string", help="The type of errata to display - one of 'Security Advisory', 'Product Enhancement Advisory', 'Bug Fix Advisory' ")
     parser.add_option("--maxIssueDate",dest="maxIssueDate", default=None, type="string", help="Maximum issue date for the erratas and packages to be included (YYYY-MM-DD HH24:MI:SS)")
     parser.add_option("--maxUpdateDate" dest="maxUpdateDate", default=None, type="string", help="Maximum update date for the erratas and packages to be included (YYYY-MM-DD H24:MI:SS)")
     parser.add_option("--onlyErratas", dest="onlyErratas", default=False, action="store_true", help="only process erratas")
@@ -241,9 +241,16 @@ def main(version):
                 parser.error('Need to specify the source channel when listing the erratas')
             else:
                 print " %30s | %30s | %22s | %s" % ("Errata", "Type", "Update date", "Synopsis")
-                #TODO: add support for filtering here
-                for errata in co.client.channel.software.listErrata(co.key,options.sourceChannel):
-                    print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement
+                if options.errataType and options.errataType in ('Security Advisory','Product Enhancement Advisory','Bug Fix Advisory'):
+                    for errata in co.client.channel.software.listErrataByType(co.key,options.sourceChannel, options.errataType):
+                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement
+                elif options.errataType:
+                    print "Errata type "+str(options.errataType)+" not known"
+                    for errata in co.client.channel.software.listErrata(co.key,options.sourceChannel):
+                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement
+                else:
+                    for errata in co.client.channel.software.listErrata(co.key,options.sourceChannel):
+                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement
         elif options.sourceChannel != None and options.destChannel != None:
             #TODO: determine which filters are in use and use appropriate function depending on which usecase.
             #TODO: step 1 get erratas to filter step 2 get all erratas from destination step 3 clone if not already in destination. only relevant packages, which are in the source, should be copied.
