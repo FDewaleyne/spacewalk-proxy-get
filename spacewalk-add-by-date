@@ -13,7 +13,7 @@ __email__ = "fdewaley@redhat.com"
 __status__ = "test"
 
 # copies  erratas and packages based on the date  use in the options
-# meant to run on python 2.7 at least (RHEL6+)
+# meant to run on python 2.6 at least (RHEL6+)
 
 import xmlrpclib, warnings, re
 
@@ -67,11 +67,11 @@ class RHNSChannel:
     def buildLists(self, other, issuedatemax=None, updatedatemax=None):
         """compares erratas and packages, returns a list of packages and erratas to add"""
         #compare packages only if no errata type was given
-        addpackages = buildPackagesList(self, other, issuedatemax, updatedatemax)
-        adderratas = buildErratasList(selth, other, issuedatemax, updatedatemax)
+        addpackages = self.buildPackageList(other, issuedatemax, updatedatemax)
+        adderratas = self.buildErrataList(other, issuedatemax, updatedatemax)
         return (adderratas, addpackages)
     
-    def buildPackagesList(self, other, issuedatemax=None, updatedatemax=None):
+    def buildPackageList(self, other, issuedatemax=None, updatedatemax=None):
         """runs the comparison for the packages"""
         addpackages = {}
         if issuedatemax == None and updatedatemax == None:
@@ -94,7 +94,7 @@ class RHNSChannel:
                     addpackages[other_key] = other.packages[other_key]
         return addpackages
 
-    def buildErratasList(self, other, issuedatemax=None, updatedatemax=None):
+    def buildErrataList(self, other, issuedatemax=None, updatedatemax=None):
         """runs the errata comparison"""
         adderratas = {}
         for other_key in other.erratas.iterkeys():
@@ -196,29 +196,25 @@ class RHNSErrata:
             return False
 
 #the main function of the program
-def main(version):
+def main(versioninfo):
+    #TODO : move to argparse for RHEL7
     import optparse
-    global URL
-    global client
-    global key
-    global verbose
-    parser = optparse.OptionParser("Usage: %prog [options]\nThis program will clone all erratas from the source to the destination as long as they are not already present in the destiation",version=version)
+    parser = argparse.OptionParser(description="Usage: %prog [options]\nThis program will clone all erratas from the source to the destination as long as they are not already present in the destiation", version="%(prog)s "+versioninfo)
     parser.add_option("-u", "--url", dest="saturl", type="string", help="url or hostname of the satellite to use e.g. http://satellite.example.com/rpc/api", default="https://127.0.0.1/rpc/api")
     parser.add_option("-l", "--login", dest="satuser", type="string", help="User to connect to satellite")
     parser.add_option("-p", "--password", dest="satpwd", type="string", help="Password to connect to satellite")
-    parser.add_option("-c", "--destChannel", dest="destChannel", default=None, type="string", help="Label of the destination channel to parse. Will be created if doesn't exist")
-    parser.add_option("-s", "--sourceChannel", dest="sourceChannel", default=None, type="string", help="Label of the source channel to clone from")
-    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Turns up the verbosity")
+    parser.add_option("-c", "--destChannel", dest="destChannel", type="string", help="Label of the destination channel to parse. Will be created if doesn't exist")
+    parser.add_option("-s", "--sourceChannel", dest="sourceChannel", type="string", help="Label of the source channel to clone from")
+    parser.add_option("-v", "--verbose", dest="verbose", action="count", help="Turns up the verbosity by one for each v" )
     parser.add_option("--listChannels", dest="listChannels", action="store_true", default=False, help="List all the channels")
     parser.add_option("--listErratas", dest="listErratas", action="store_true", default=False, help="Lists all the erratas of the source.")
     parser.add_option("--errataType", dest="errataType", type="string", help="The type of errata to display - one of 'Security Advisory', 'Product Enhancement Advisory', 'Bug Fix Advisory' ")
-    parser.add_option("--maxIssueDate",dest="maxIssueDate", default=None, type="string", help="Maximum issue date for the erratas and packages to be included (YYYY-MM-DD HH24:MI:SS)")
-    parser.add_option("--maxUpdateDate" dest="maxUpdateDate", default=None, type="string", help="Maximum update date for the erratas and packages to be included (YYYY-MM-DD H24:MI:SS)")
+    parser.add_option("--maxIssueDate",dest="maxIssueDate", type="string", help="Maximum issue date for the erratas and packages to be included (YYYY-MM-DD HH24:MI:SS)")
+    parser.add_option("--maxUpdateDate" dest="maxUpdateDate", type="string", help="Maximum update date for the erratas and packages to be included (YYYY-MM-DD H24:MI:SS)")
     parser.add_option("--onlyErratas", dest="onlyErratas", default=False, action="store_true", help="only process erratas")
     parser.add_option("--onlyPackages", dest="onlyPackages", default=False, action="store_true", help="only process packages")
     parser.add_option("-C", "--clean-channel", dest="cleanChannel", default=False, action="store_true", help="clean the destination channel before starting")
     (options, args) = parser.parse_args()
-    verbose = options.verbose
     #transformation of saturl into a full url if only given the hostname or an ip adress
     if re.match('^http(s)?://[\w\-.]+/rpc/api',options.saturl) == None:
         if re.search('^http(s)?://', options.saturl) == None:
@@ -251,9 +247,17 @@ def main(version):
                 else:
                     for errata in co.client.channel.software.listErrata(co.key,options.sourceChannel):
                         print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement
-        elif options.sourceChannel != None and options.destChannel != None:
-            #TODO: determine which filters are in use and use appropriate function depending on which usecase.
-            #TODO: step 1 get erratas to filter step 2 get all erratas from destination step 3 clone if not already in destination. only relevant packages, which are in the source, should be copied.
+        elif options.sourceChannel and options.destChannel and options.sourceChannel != options.destChannel :
+            print "Aquiring information from the channels"
+            source=RHNSChannel(co, options.sourceChannel)
+            destination=RHNSChannel(co, options.sourceChannel)
+            erratalist={}
+            packagelist={}
+            if not options.onlyPackages:
+                #code to handle erratas comparison
+                erratalist = source.buildErrataList
+            if not options.onlyErratas:
+                #code to handle package comparison
             if options.maxIssueDate != None or options.maxUpdateDate != None:
                 #run with options to control the dates of packages chosen
             else:
