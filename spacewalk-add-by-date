@@ -201,10 +201,18 @@ class RHNSErrata:
 
     def __eq__(self, other):
         """compare two erratas and tells if they are the same based on the packages they contain"""
-        if self.advisory_name == other.advisory_name and self.packages == other.packages:
-            return True
+        #two erratas are identical if we have all the packages of one into the other - erratas can not include packages on the base of the architecture.
+        #therefore if we compare the channel which has the least packages with the other, we can find out if all its packages are in the other.
+        samepackages = True
+        if len(other.packages) < len(self.packages):
+            for package in other.packages:
+                if not self.packages.has_key(package.packageid):
+                    samepackages = False
         else:
-            return False
+            for package in self.packages:
+                if not other.packages.has_key(package.packageid):
+                    samepackages = False
+        return samapackages
 
 #the main function of the program
 def main(versioninfo):
