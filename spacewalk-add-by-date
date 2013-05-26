@@ -125,10 +125,14 @@ class RHNSChannel:
 
     def addErratas(self, connection, erratas={}):
         """add the erratas to the channel"""
+        #clones the erratas as Originals and ends when all is copied.
+        connection.client.errata.cloneAsOriginal(connection.key, self.label, erratas.keys())
         pass
 
     def addPackages(self, connection, packages={}):
         """add the packages to the channel"""
+        #adds all listed packages to the channel
+        connection.client.channel.software.addPackages(connection.key, self.label, packages.keys())
         pass
 
 class RHNSPackage:
