@@ -7,10 +7,10 @@
 __author__ = "Felix Dewaleyne"
 __credits__ = ["Felix Dewaleyne"]
 __license__ = "GPL"
-__version__ = "0.7"
+__version__ = "0.9"
 __maintainer__ = "Felix Dewaleyne"
 __email__ = "fdewaley@redhat.com"
-__status__ = "test"
+__status__ = "dev"
 
 # copies  erratas and packages based on the date  use in the options
 # meant to run on python 2.6 at least (RHEL6+)
@@ -127,12 +127,19 @@ class RHNSChannel:
         """add the erratas to the channel"""
         #clones the erratas as Originals and ends when all is copied.
         #returns the erratas cloned according to the api.
-        return connection.client.errata.cloneAsOriginal(connection.key, self.label, erratas.keys())
+        if len(erratas) == 0:
+            return {}
+        else:
+            return connection.client.errata.cloneAsOriginal(connection.key, self.label, erratas.keys())
 
     def addPackages(self, connection, packages={}):
         """add the packages to the channel"""
         #adds all listed packages to the channel
-        return connection.client.channel.software.addPackages(connection.key, self.label, packages.keys())
+        if len(packages) == 0:
+            #there was nothing to add, so let's just call it a success and not call the api.
+            return 1
+        else:
+            return connection.client.channel.software.addPackages(connection.key, self.label, packages.keys())
         
 
 class RHNSPackage:
@@ -271,14 +278,14 @@ def main(versioninfo):
                 print " %30s | %30s | %22s | %s" % ("Errata", "Type", "Update date", "Synopsis")
                 if options.errataType and options.errataType in ('Security Advisory','Product Enhancement Advisory','Bug Fix Advisory'):
                     for errata in co.client.channel.software.listErrataByType(co.key,options.sourceChannel, options.errataType):
-                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement
+                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement in 5.6
                 elif options.errataType:
                     print "Errata type "+str(options.errataType)+" not known"
                     for errata in co.client.channel.software.listErrata(co.key,options.sourceChannel):
-                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement
+                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement in 5.6
                 else:
                     for errata in co.client.channel.software.listErrata(co.key,options.sourceChannel):
-                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement
+                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement in 5.6
         elif options.sourceChannel and options.destChannel and options.sourceChannel != options.destChannel :
             print "Aquiring information from the channels"
             source=RHNSChannel(co, options.sourceChannel)
