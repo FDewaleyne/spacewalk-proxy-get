@@ -46,3 +46,46 @@ Options:
   --listproviders       Make the script list the providers defined and exit.
                         only the base org admin can list the providers
 ~~~
+
+####The spacewalk-add-by-date script
+
+~~~
+Usage: spacewalk-add-by-date [options]
+
+Usage: spacewalk-add-by-date [options] This program will clone all erratas and
+packages from the source to the destination as long as they are not already
+present in the destiation, depending on which settings are used
+
+Options:
+  --version             show program's version number and exit
+  -h, --help            show this help message and exit
+  -u SATURL, --url=SATURL
+                        url or hostname of the satellite to use e.g.
+                        http://satellite.example.com/rpc/api
+  -l SATUSER, --login=SATUSER
+                        User to connect to satellite
+  -p SATPWD, --password=SATPWD
+                        Password to connect to satellite
+  -c DESTCHANNEL, --destChannel=DESTCHANNEL
+                        Label of the destination channel to parse. Will be
+                        created if doesn't exist
+  -s SOURCECHANNEL, --sourceChannel=SOURCECHANNEL
+                        Label of the source channel to clone from
+  -v, --verbose         Turns up the verbosity by one for each v
+  --listChannels        List all the channels
+  --listErratas         Lists all the erratas of the source.
+  --errataType=ERRATATYPE
+                        The type of errata to display - one of 'Security
+                        Advisory', 'Product Enhancement Advisory', 'Bug Fix
+                        Advisory'
+  --maxIssueDate=MAXISSUEDATE
+                        Maximum issue date for the erratas and packages to be
+                        included (YYYY-MM-DD HH24:MI:SS)
+  --maxUpdateDate=MAXUPDATEDATE
+                        Maximum update date for the erratas and packages to be
+                        included (YYYY-MM-DD H24:MI:SS)
+  --onlyErratas         only process erratas
+  --onlyPackages        only process packages
+  -C, --clean-channel   clean the destination channel before starting
+~~~
+
