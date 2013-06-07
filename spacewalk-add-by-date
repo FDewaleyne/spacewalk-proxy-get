@@ -238,7 +238,7 @@ class RHNSErrata:
 def main(versioninfo):
     #TODO : move to argparse for RHEL7
     import optparse
-    parser = argparse.OptionParser(description="Usage: %prog [options]\nThis program will clone all erratas from the source to the destination as long as they are not already present in the destiation", version="%(prog)s "+versioninfo)
+    parser = optparse.OptionParser(description="Usage: %prog [options]\nThis program will clone all erratas from the source to the destination as long as they are not already present in the destiation", version="%(prog)s "+versioninfo)
     parser.add_option("-u", "--url", dest="saturl", type="string", help="url or hostname of the satellite to use e.g. http://satellite.example.com/rpc/api", default="https://127.0.0.1/rpc/api")
     parser.add_option("-l", "--login", dest="satuser", type="string", help="User to connect to satellite")
     parser.add_option("-p", "--password", dest="satpwd", type="string", help="Password to connect to satellite")
@@ -248,8 +248,8 @@ def main(versioninfo):
     parser.add_option("--listChannels", dest="listChannels", action="store_true", default=False, help="List all the channels")
     parser.add_option("--listErratas", dest="listErratas", action="store_true", default=False, help="Lists all the erratas of the source.")
     parser.add_option("--errataType", dest="errataType", type="string", help="The type of errata to display - one of 'Security Advisory', 'Product Enhancement Advisory', 'Bug Fix Advisory' ")
-    parser.add_option("--maxIssueDate",dest="maxIssueDate", default=None, type="datetime", help="Maximum issue date for the erratas and packages to be included (YYYY-MM-DD HH24:MI:SS)")
-    parser.add_option("--maxUpdateDate" dest="maxUpdateDate", default=None, type="datetime", help="Maximum update date for the erratas and packages to be included (YYYY-MM-DD H24:MI:SS)")
+    parser.add_option("--maxIssueDate",dest="maxIssueDate", default=None, type="string", help="Maximum issue date for the erratas and packages to be included (YYYY-MM-DD HH24:MI:SS)")
+    parser.add_option("--maxUpdateDate", dest="maxUpdateDate", default=None, type="string", help="Maximum update date for the erratas and packages to be included (YYYY-MM-DD H24:MI:SS)")
     parser.add_option("--onlyErratas", dest="onlyErratas", default=False, action="store_true", help="only process erratas")
     parser.add_option("--onlyPackages", dest="onlyPackages", default=False, action="store_true", help="only process packages")
     parser.add_option("-C", "--clean-channel", dest="cleanChannel", default=False, action="store_true", help="clean the destination channel before starting")
@@ -292,10 +292,21 @@ def main(versioninfo):
             destination=RHNSChannel(co, options.sourceChannel)
             erratalist={}
             packagelist={}
+            import time
+            if maxIssueDate != None:
+                if len(maxIssueDate) > 10:
+                    maxIssueDate = time.strptime(options.maxIssueDate,"%Y-%m-%d %H:%M:%S")
+                else:
+                    maxIssueDate = time.strptime(options.maxIssueDate+" 23:50:59", "%Y-%m-%d %H:%M:%S")
+            if maxUpdateDate != None:
+                if len(maxUpdateDate) > 10:
+                    maxUpdateDate = time.strptime(options.maxUpdateDate,"%Y-%m-%d %H:%M:%S")
+                else:
+                    maxUpdateDate = time.strptime(options.maxUpdateDate+" 23:50:59", "%Y-%m-%d %H:%M:%S")
             if not options.onlyPackages:
                 #code to handle erratas comparison
-                print "Comparing the erratas between "+source.label"+ and "+destination.label
-                erratalist = destination.buildErrataList(source, options.maxIssueDate, options.maxUpdateDate)
+                print "Comparing the erratas between "+source.label+" and "+destination.label
+                erratalist = destination.buildErrataList(source, maxIssueDate, maxUpdateDate)
                 print "Clonning "+str(len(erratalist))+" erratas to "+destination.label
                 added = destination.addErratas(co, erratalist)
                 print "Cloned "+str(len(added))+" erratas to the new channel"
@@ -304,8 +315,8 @@ def main(versioninfo):
                 if not options.onlyPackages:
                     #refresh the list of packages since we synced the erratas!
                     destination.refresh(connection)
-                print "Comparing the packages between "+source.label" and "+destination.label
-                packagelist = destination.buildPackageList(source, options.maxIssueDate, options.maxUpdateDate)
+                print "Comparing the packages between "+source.label+" and "+destination.label
+                packagelist = destination.buildPackageList(source, maxIssueDate, maxUpdateDate)
                 print "Adding "+str(len(packagelist))+" packages to "+destination.label
                 destination.addPackages(co, packagelist)
             print "Done"
