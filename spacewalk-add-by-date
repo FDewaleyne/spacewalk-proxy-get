@@ -1,0 +1,319 @@
+#!/usr/bin/python
+
+##
+# To the extent possible under law, Red Hat, Inc. has dedicated all copyright to this software to the public domain worldwide, pursuant to the CC0 Public Domain Dedication. 
+# This software is distributed without any warranty.  See <http://creativecommons.org/publicdomain/zero/1.0/>.
+##
+__author__ = "Felix Dewaleyne"
+__credits__ = ["Felix Dewaleyne"]
+__license__ = "GPL"
+__version__ = "0.9"
+__maintainer__ = "Felix Dewaleyne"
+__email__ = "fdewaley@redhat.com"
+__status__ = "dev"
+
+# copies  erratas and packages based on the date  use in the options
+# meant to run on python 2.6 at least (RHEL6+)
+
+import xmlrpclib, warnings, re
+
+class RHNSConnection:
+
+    username = None
+    host = None
+    key = None
+    client = None
+    closed = False
+
+    def __init__(self,username,password,host):
+        """connects to the satellite db with given parameters"""
+        URL = "https://%s/rpc/api" % host
+        self.client = xmlrpclib.Server(URL)
+        self.key = client.auth.login(username,password)
+        self.usernams = username
+        self.host = host
+        pass
+
+    def close(self):
+        """closes a connection. item can be destroyed then"""
+        self.client.auth.logout(self.key)
+        self.closed = True
+        pass
+
+    def __exit__(self):
+        """closes connection on exit"""
+        if not self.closed :
+            self.client.auth.logout(self.key)
+        pass
+
+
+class RHNSChannel:
+
+    label = None
+    erratas = {}
+    packages = {}
+
+    def __init__(self, connection, alabel):
+        """populates the object with the data from the channel"""
+        self.label = alabel
+        for anerrata in connection.client.software.channel.listErrata(connection.key, alabel):
+            theerrata = RHNSErrata(connection, anerrata)
+            self.erratas[theerrata.advisory_name] = theerrata
+        for apackage in connection.client.software.channel.listAllPackages(connection.key, alabel):
+            thepackage = RHNSPackage(connection, apackage)
+            self.packages[thepackage.packageid] = thepackage
+        pass
+
+    def buildLists(self, other, issuedatemax=None, updatedatemax=None):
+        """compares erratas and packages, returns a list of packages and erratas to add"""
+        #compare packages only if no errata type was given
+        addpackages = self.buildPackageList(other, issuedatemax, updatedatemax)
+        adderratas = self.buildErrataList(other, issuedatemax, updatedatemax)
+        return (adderratas, addpackages)
+    
+    def buildPackageList(self, other, issuedatemax=None, updatedatemax=None):
+        """runs the comparison for the packages"""
+        addpackages = {}
+        if issuedatemax == None and updatedatemax == None:
+            packagedatemax = None
+        elif updatedatemax == None or issuedatemax == None:
+            if updatedatemax == None:
+                packagedatemax = issuedatemax
+            else:
+                packagedatemax = updatedatemax
+        elif issuedatemax > updatedatemax:
+            packagedatemax = issuedatemax
+        else:
+            #this means updatedatemax is either bigger or equal to issuedatemax
+            packagedatemax = updatedatemax
+        for other_key in other.packages.iterkeys():
+            if not other_key in self.packages.keys():
+                if packagedatemax == None:
+                    addpackages[other_key] = other.packages[other_key]
+                elif packagedatemax >= other.packages[other_key].last_modified_date:
+                    addpackages[other_key] = other.packages[other_key]
+        return addpackages
+
+    def buildErrataList(self, other, issuedatemax=None, updatedatemax=None):
+        """runs the errata comparison"""
+        adderratas = {}
+        for other_key in other.erratas.iterkeys():
+            if erratatype == None or erratatype == other.erratas[other_key].advisory_type:
+                if not other_key in self.erratas.keys():
+                    if issuedatemax == None and updatedatemax == None: 
+                        adderratas[other_key] = other.erratas[other_key]
+                    elif updatedatemax == None and issuedatemax > other.erratas[other_key].issue_date:
+                        adderratas[other_key] = other.erratas[other_key]
+                    elif issuedatemax == None and updatedatemax > other.erratas[other_key].update_date:
+                        adderratas[other_key] = other.erratas[other_key]
+                    elif updatedatemax >= other.erratas[other_key].update_date or issuedatemax >= other.erratas[other_key].issue_date:
+                        adderratas[other_key] = other.erratas[other_key]
+        return adderratas
+
+    def refresh(self, connection):
+        """refresh the content of the channel (errata and package lists)"""
+        #clear the content of the lists, then refresh them all
+        self.packages.clear()
+        self.erratas.clear()
+        for anerrata in connection.client.software.channel.listErrata(connection.key, self.label):
+            theerrata = RHNSErrata(connection, anerrata)
+            self.erratas[theerrata.advisory_name] = theerrata
+        for apackage in connection.client.software.channel.listAllPackages(connection.key, self.label):
+            thepackage = RHNSPackage(connection, apackage)
+            self.packages[thepackage.packageid] = thepackage
+        pass
+
+    def addErratas(self, connection, erratas={}):
+        """add the erratas to the channel"""
+        #clones the erratas as Originals and ends when all is copied.
+        #returns the erratas cloned according to the api.
+        if len(erratas) == 0:
+            return {}
+        else:
+            return connection.client.errata.cloneAsOriginal(connection.key, self.label, erratas.keys())
+
+    def addPackages(self, connection, packages={}):
+        """add the packages to the channel"""
+        #adds all listed packages to the channel
+        if len(packages) == 0:
+            #there was nothing to add, so let's just call it a success and not call the api.
+            return 1
+        else:
+            return connection.client.channel.software.addPackages(connection.key, self.label, packages.keys())
+        
+
+class RHNSPackage:
+
+    name = None
+    version = None
+    release = None
+    epoch = None
+    arch = None
+    packageid = None
+    checksum = None
+    checksum_type = None
+    last_modified_date = None
+
+    def __init__(self, connection, package_info):
+        """populates a package object"""
+        if type(package_info) == dict:
+            self.name = package_info['name']
+            self.version = package_info['version']
+            self.release = package_info['release']
+            self.epoch = package_info['epoch']
+            self.arch = package_info['arch_label']
+            self.packageid = package_info['id']
+            self.checksum = package_info['checksum']
+            self.checksum_type = pacakge_info['checksum_type']
+            self.last_modified_date = package_info['last_modified_date']
+        elif type(package_info) == int:
+            infos = connection.client.packages.getDetails(connection.key, package_info)
+            self.name = infos['name']
+            self.version = infos['version']
+            self.release = infos['release']
+            self.epoch = infos['epoch']
+            self.arch = infos['arch_label']
+            self.packageid = infos['id']
+            self.checksum = infos['checksum']
+            self.checksum_type = infos['checksum_type']
+            self.last_modified_date = infos['last_modified_date']
+        pass
+
+    def __eq__(self, other):
+        """compare two packages ; it is the same package if the NVREA and checksum are the same"""
+        if self.name == other.name and self.version == other.version and self.release == other.release and self.epoch == other.epoch and self.arch == other.arch and self.checksum == other.checksum:
+            return True
+        else:
+            return False
+        pass
+
+class RHNSErrata:
+
+    packages={}
+    advisory_name=None
+    advisory_synopsis=None
+    advisory_type=None
+    issue_date=None
+    update_date=None
+
+    def __init__(self,connection, errata_info):
+        """__init__ function, should populate the object with all the elements of the errata."""
+        #errata_info sould be the same as the information present from the channel. it should otherwise be an errata name, and then will be looked up
+        if type (errata_info ) == str:
+            advisory_info = connection.client.errata.getDetails(connection.key, errata_info)
+            self.advisory_name = errata_info
+            self.advisory_synopsis = advisory_info['synopsis']
+            self.advisory_type = advisory_info['type']
+            self.issue_date = advisory_info['issue_date']
+            self.update_date = advisory_info['update_date']
+        elif type (errata_info) == dict:
+            #would only have elements id, date, update_date, advisory_synopsis, advisory_type, advisory_name
+            self.advisory_name = errata_info['advisory_name']
+            self.advisory_synopsis = errata_info['advisory_synopsis']
+            self.avisory_type = errata_info['advisory_type']
+            self.issue_date = errata_info['date']
+            self.update_date = errata_info['update_date']
+        else:
+            pass #TODO replace with raising an exception here
+        for apackage in connection.client.errata.listPackages(connection.key, self.advisory_name):
+            thepackage = RHNSPackate(connection,apackage)
+            self.packages[thepackage['id']] = thepackage
+
+    def __eq__(self, other):
+        """compare two erratas and tells if they are the same based on the packages they contain"""
+        #two erratas are identical if we have all the packages of one into the other - erratas can not include packages on the base of the architecture.
+        #therefore if we compare the channel which has the least packages with the other, we can find out if all its packages are in the other.
+        samepackages = True
+        if len(other.packages) < len(self.packages):
+            for package in other.packages:
+                if not self.packages.has_key(package.packageid):
+                    samepackages = False
+        else:
+            for package in self.packages:
+                if not other.packages.has_key(package.packageid):
+                    samepackages = False
+        return samapackages
+
+#the main function of the program
+def main(versioninfo):
+    #TODO : move to argparse for RHEL7
+    import optparse
+    parser = argparse.OptionParser(description="Usage: %prog [options]\nThis program will clone all erratas from the source to the destination as long as they are not already present in the destiation", version="%(prog)s "+versioninfo)
+    parser.add_option("-u", "--url", dest="saturl", type="string", help="url or hostname of the satellite to use e.g. http://satellite.example.com/rpc/api", default="https://127.0.0.1/rpc/api")
+    parser.add_option("-l", "--login", dest="satuser", type="string", help="User to connect to satellite")
+    parser.add_option("-p", "--password", dest="satpwd", type="string", help="Password to connect to satellite")
+    parser.add_option("-c", "--destChannel", dest="destChannel", type="string", help="Label of the destination channel to parse. Will be created if doesn't exist")
+    parser.add_option("-s", "--sourceChannel", dest="sourceChannel", type="string", help="Label of the source channel to clone from")
+    parser.add_option("-v", "--verbose", dest="verbose", action="count", help="Turns up the verbosity by one for each v" )
+    parser.add_option("--listChannels", dest="listChannels", action="store_true", default=False, help="List all the channels")
+    parser.add_option("--listErratas", dest="listErratas", action="store_true", default=False, help="Lists all the erratas of the source.")
+    parser.add_option("--errataType", dest="errataType", type="string", help="The type of errata to display - one of 'Security Advisory', 'Product Enhancement Advisory', 'Bug Fix Advisory' ")
+    parser.add_option("--maxIssueDate",dest="maxIssueDate", default=None, type="datetime", help="Maximum issue date for the erratas and packages to be included (YYYY-MM-DD HH24:MI:SS)")
+    parser.add_option("--maxUpdateDate" dest="maxUpdateDate", default=None, type="datetime", help="Maximum update date for the erratas and packages to be included (YYYY-MM-DD H24:MI:SS)")
+    parser.add_option("--onlyErratas", dest="onlyErratas", default=False, action="store_true", help="only process erratas")
+    parser.add_option("--onlyPackages", dest="onlyPackages", default=False, action="store_true", help="only process packages")
+    parser.add_option("-C", "--clean-channel", dest="cleanChannel", default=False, action="store_true", help="clean the destination channel before starting")
+    (options, args) = parser.parse_args()
+    #transformation of saturl into a full url if only given the hostname or an ip adress
+    if re.match('^http(s)?://[\w\-.]+/rpc/api',options.saturl) == None:
+        if re.search('^http(s)?://', options.saturl) == None:
+            saturl = "https://"+options.saturl
+        else:
+            saturl = options.saturl
+        if re.search('/rpc/api$', saturl) == None:
+            saturl = saturl+"/rpc/api"
+    if not options.satuser or not options.satpwd:
+        parser.error('username and password are required options.')
+    else:
+        #init
+        co = RHNSConnection(options.satuser,options.satpwd,saturl)
+        if options.listChannels :
+            print " %40s | %10s | %20s | %s " % ("Label", "Arch", "Provider", "Name")
+            for channel in co.client.channel.listAllChannels(co.key):
+                print " %40s | %10s | %20s | %s " % (channel['label'], channel['arch_name'],  channel['provider'], channel['name'])
+        elif options.listErratas:
+            if options.sourceChannel == None:
+                parser.error('Need to specify the source channel when listing the erratas')
+            else:
+                print " %30s | %30s | %22s | %s" % ("Errata", "Type", "Update date", "Synopsis")
+                if options.errataType and options.errataType in ('Security Advisory','Product Enhancement Advisory','Bug Fix Advisory'):
+                    for errata in co.client.channel.software.listErrataByType(co.key,options.sourceChannel, options.errataType):
+                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement in 5.6
+                elif options.errataType:
+                    print "Errata type "+str(options.errataType)+" not known"
+                    for errata in co.client.channel.software.listErrata(co.key,options.sourceChannel):
+                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement in 5.6
+                else:
+                    for errata in co.client.channel.software.listErrata(co.key,options.sourceChannel):
+                        print " %30s | %30s | %22s | %s" % (errata['advisory_name'], errata['advisory_type'], errata['issue_date'], errata['advisory_synopsis']) #warning may be depredicated with no actual replacement in 5.6
+        elif options.sourceChannel and options.destChannel and options.sourceChannel != options.destChannel :
+            print "Aquiring information from the channels"
+            source=RHNSChannel(co, options.sourceChannel)
+            destination=RHNSChannel(co, options.sourceChannel)
+            erratalist={}
+            packagelist={}
+            if not options.onlyPackages:
+                #code to handle erratas comparison
+                print "Comparing the erratas between "+source.label"+ and "+destination.label
+                erratalist = destination.buildErrataList(source, options.maxIssueDate, options.maxUpdateDate)
+                print "Clonning "+str(len(erratalist))+" erratas to "+destination.label
+                added = destination.addErratas(co, erratalist)
+                print "Cloned "+str(len(added))+" erratas to the new channel"
+            if not options.onlyErratas:
+                #code to handle package comparison
+                if not options.onlyPackages:
+                    #refresh the list of packages since we synced the erratas!
+                    destination.refresh(connection)
+                print "Comparing the packages between "+source.label" and "+destination.label
+                packagelist = destination.buildPackageList(source, options.maxIssueDate, options.maxUpdateDate)
+                print "Adding "+str(len(packagelist))+" packages to "+destination.label
+                destination.addPackages(co, packagelist)
+            print "Done"
+        else:
+            parser.error("unable to determine what to do - use -h for usage information")
+
+        client.auth.logout(key)
+
+if __name__ == "__main__":
+    main(__version__)
+
