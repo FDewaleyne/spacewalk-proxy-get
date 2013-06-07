@@ -238,7 +238,7 @@ class RHNSErrata:
 def main(versioninfo):
     #TODO : move to argparse for RHEL7
     import optparse
-    parser = optparse.OptionParser(description="Usage: %prog [options]\nThis program will clone all erratas from the source to the destination as long as they are not already present in the destiation", version="%(prog)s "+versioninfo)
+    parser = optparse.OptionParser(description="Usage: %prog [options]\nThis program will clone all erratas from the source to the destination as long as they are not already present in the destiation", version="%prog "+versioninfo)
     parser.add_option("-u", "--url", dest="saturl", type="string", help="url or hostname of the satellite to use e.g. http://satellite.example.com/rpc/api", default="https://127.0.0.1/rpc/api")
     parser.add_option("-l", "--login", dest="satuser", type="string", help="User to connect to satellite")
     parser.add_option("-p", "--password", dest="satpwd", type="string", help="Password to connect to satellite")
