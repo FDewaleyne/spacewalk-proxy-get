@@ -1,0 +1,69 @@
+#!/usr/bin/python
+
+##
+# To the extent possible under law, Red Hat, Inc. has dedicated all copyright to this software to the public domain worldwide, pursuant to the CC0 Public Domain Dedication. 
+# This software is distributed without any warranty.  See <http://creativecommons.org/publicdomain/zero/1.0/>.
+##
+__author__ = "Felix Dewaleyne"
+__credits__ = ["Felix Dewaleyne"]
+__license__ = "GPL"
+__version__ = "0.1"
+__maintainer__ = "Felix Dewaleyne"
+__email__ = "fdewaley@redhat.com"
+__status__ = "Dev"
+
+# copies a configuration channel from one satellite to another
+
+import xmlrpclib, warnings
+URL=None
+client=None
+key=None
+verbose=False
+
+
+def main(version):
+    import optparse
+    global URL
+    global client
+    global key
+    global verbose
+    parser = optparse.OptionParser("Usage: %prog [options]/n Will copy a channel from the satellite defined in command line to prompted destination",version=version)
+    parser.add_option("-u", "--user", dest="user", type="string", help="User to connect to satellite")
+    parser.add_option("-p", "--password", dest="password", type="string", help="Password to connect to satellite")
+    parser.add_option("-c", "--channel", dest="channel", default=None, type="string", help="Label of the Channel to parse. Required for most operations")
+    parser.add_option("-H", "--host", dest="host", type="string", default="127.0.0.1", help="Satellite hostname or ip - defaults to %default")
+    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Turns up the verbosity")
+    parser.add_option("-l", "--list", dest="listing", action="store_true", default=False, help="List all the packages affected")
+    parser.add_option("--config", dest="clabel", type="string", help="Config channel to copy to the destination - needs to be visible to the user"
+    (options, args) = parser.parse_args()
+    verbose = options.verbose
+    URL="http://%s/rpc/api" % options.host
+
+    if not options.user or not  options.password:
+        parser.error('username and password are required options.')
+    else:
+        #init
+        client = xmlrpclib.Server(URL)
+        key = client.auth.login(options.user,options.password)
+        if options.listproviders :
+            for provider in client.packages.provider.list(key):
+                for akey in provider['keys']:
+                    print "%20s - %s " % (provider['name'], akey['key'])
+        elif options.listing and options.channel == None:
+            print "list of channels: "
+            for channel in client.channel.listMyChannels(key):
+                print "%40s - %s" % (channel['label'], channel['name'])
+        elif options.listing and options.channel != None and options.provider != None: 
+            print "checking for packages that aren't from the given provider - this will take time. use verbose to see all packages"
+            find_bad_packages(options.channel, options.provider) 
+        elif options.automatic and options.channel != None and options.provider != None:
+            print "checking for packages that aren't from the given provider and attempting to fix if a package is available"
+            auto_fix(options.channel,options.provider)
+        else:
+            parser.error("unable to determine what to do - use -h for usage information")
+
+        client.auth.logout(key)
+
+if __name__ == "__main__":
+    main(__version__)
+
