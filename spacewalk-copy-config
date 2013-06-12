@@ -15,16 +15,72 @@ __status__ = "Dev"
 # copies a configuration channel from one satellite to another
 
 import xmlrpclib, warnings
-URL=None
 client=None
+clientdest=None
 key=None
 verbose=False
 
+#################
+# session initiator code
+################
+# global variables
+client=None;
+SATELLITE_LOGIN=None;
+config = ConfigParser.ConfigParser()
+config.read(['.satellite', os.path.expanduser('~/.satellite'), '/etc/sysconfig/rhn/satellite'])
+
+# this will initialize a session and return its key.
+# for security reason the password is removed from memory before exit, but we want to keep the current username.
+def session_init(orgname='baseorg', settings={} ):
+    global client;
+    global config;
+    global SATELLITE_LOGIN;
+    if 'url' in settings and not settings['url'] == None:
+        SATELLITE_URL = settings['url']
+    elif config.has_section('default') and config.has_option('default', 'url'):
+        SATELLITE_URL = config.get('default','url')
+    else:
+        sys.stderr.write("enter the satellite url, such as https://satellite.example.com/rpc/api")
+        sys.stderr.write("\n")
+        SATELLITE_URL = raw_input().strip()
+    #format the url if a part is missing
+    if re.match('^http(s)?://[\w\-.]+/rpc/api',SATELLITE_URL) == None:
+        if re.search('^http(s)?://', SATELLITE_URL) == None:
+            SATELLITE_URL = "https://"+SATELLITE_URL
+        if re.search('/rpc/api$', SATELLITE_URL) == None:
+            SATELLITE_URL = SATELLITE_URL+"/rpc/api"
+    if 'login' in settings and not settings['login'] == None:
+        SATELLITE_LOGIN = settings['login']
+    elif config.has_section(orgname) and config.has_option(orgname, 'username'):
+        SATELLITE_LOGIN = config.get(orgname, 'username')
+    else:
+        sys.stderr.write("Login details for %s\n\n" % SATELLITE_URL)
+        sys.stderr.write("Login: ")
+        SATELLITE_LOGIN = raw_input().strip()
+    if 'password' in settings and not settings['password'] == None:
+        SATELLITE_PASSWORD = settings['password']
+    elif config.has_section(orgname) and config.has_option(orgname, 'password'):
+        SATELLITE_PASSWORD = config.get(orgname, 'password')
+    else:
+        SATELLITE_PASSWORD = getpass.getpass(prompt="Password: ")
+        sys.stderr.write("\n")
+    #inits the connection
+    client = xmlrpclib.Server(SATELLITE_URL, verbose=0)
+    key = client.auth.login(SATELLITE_LOGIN, SATELLITE_PASSWORD)
+    # removes the password from memory
+    del SATELLITE_PASSWORD
+    return key
+
+def get_configs(client):
+    """docstring for get_configs"""
+    pass
+
+#TODO: move to object, then make it so objects can be created or copied and copying just adds an option to clone to the connected machine. simple enough to read, should be possible.
 
 def main(version):
     import optparse
-    global URL
     global client
+    global clientdest
     global key
     global verbose
     parser = optparse.OptionParser("Usage: %prog [options]/n Will copy a channel from the satellite defined in command line to prompted destination",version=version)
@@ -37,31 +93,12 @@ def main(version):
     parser.add_option("--config", dest="clabel", type="string", help="Config channel to copy to the destination - needs to be visible to the user"
     (options, args) = parser.parse_args()
     verbose = options.verbose
-    URL="http://%s/rpc/api" % options.host
 
-    if not options.user or not  options.password:
-        parser.error('username and password are required options.')
+    if options.clabel == None and not options.listing: 
+        parser.error('no action defined - use -h for usage information')
     else:
-        #init
-        client = xmlrpclib.Server(URL)
-        key = client.auth.login(options.user,options.password)
-        if options.listproviders :
-            for provider in client.packages.provider.list(key):
-                for akey in provider['keys']:
-                    print "%20s - %s " % (provider['name'], akey['key'])
-        elif options.listing and options.channel == None:
-            print "list of channels: "
-            for channel in client.channel.listMyChannels(key):
-                print "%40s - %s" % (channel['label'], channel['name'])
-        elif options.listing and options.channel != None and options.provider != None: 
-            print "checking for packages that aren't from the given provider - this will take time. use verbose to see all packages"
-            find_bad_packages(options.channel, options.provider) 
-        elif options.automatic and options.channel != None and options.provider != None:
-            print "checking for packages that aren't from the given provider and attempting to fix if a package is available"
-            auto_fix(options.channel,options.provider)
-        else:
-            parser.error("unable to determine what to do - use -h for usage information")
-
+        #init main
+        client = 
         client.auth.logout(key)
 
 if __name__ == "__main__":
