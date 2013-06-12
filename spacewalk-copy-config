@@ -14,69 +14,56 @@ __status__ = "Dev"
 
 # copies a configuration channel from one satellite to another
 
-import xmlrpclib, warnings
-client=None
-clientdest=None
-key=None
-verbose=False
+import xmlrpclib, warnings, re
 
-#################
-# session initiator code
-################
-# global variables
-client=None;
-SATELLITE_LOGIN=None;
-config = ConfigParser.ConfigParser()
-config.read(['.satellite', os.path.expanduser('~/.satellite'), '/etc/sysconfig/rhn/satellite'])
+#connector class -used to initiate a connection to a satellite and to send the proper satellite the proper commands
+class RHNSConnection:
 
-# this will initialize a session and return its key.
-# for security reason the password is removed from memory before exit, but we want to keep the current username.
-def session_init(orgname='baseorg', settings={} ):
-    global client;
-    global config;
-    global SATELLITE_LOGIN;
-    if 'url' in settings and not settings['url'] == None:
-        SATELLITE_URL = settings['url']
-    elif config.has_section('default') and config.has_option('default', 'url'):
-        SATELLITE_URL = config.get('default','url')
-    else:
-        sys.stderr.write("enter the satellite url, such as https://satellite.example.com/rpc/api")
-        sys.stderr.write("\n")
-        SATELLITE_URL = raw_input().strip()
-    #format the url if a part is missing
-    if re.match('^http(s)?://[\w\-.]+/rpc/api',SATELLITE_URL) == None:
-        if re.search('^http(s)?://', SATELLITE_URL) == None:
-            SATELLITE_URL = "https://"+SATELLITE_URL
-        if re.search('/rpc/api$', SATELLITE_URL) == None:
-            SATELLITE_URL = SATELLITE_URL+"/rpc/api"
-    if 'login' in settings and not settings['login'] == None:
-        SATELLITE_LOGIN = settings['login']
-    elif config.has_section(orgname) and config.has_option(orgname, 'username'):
-        SATELLITE_LOGIN = config.get(orgname, 'username')
-    else:
-        sys.stderr.write("Login details for %s\n\n" % SATELLITE_URL)
-        sys.stderr.write("Login: ")
-        SATELLITE_LOGIN = raw_input().strip()
-    if 'password' in settings and not settings['password'] == None:
-        SATELLITE_PASSWORD = settings['password']
-    elif config.has_section(orgname) and config.has_option(orgname, 'password'):
-        SATELLITE_PASSWORD = config.get(orgname, 'password')
-    else:
-        SATELLITE_PASSWORD = getpass.getpass(prompt="Password: ")
-        sys.stderr.write("\n")
-    #inits the connection
-    client = xmlrpclib.Server(SATELLITE_URL, verbose=0)
-    key = client.auth.login(SATELLITE_LOGIN, SATELLITE_PASSWORD)
-    # removes the password from memory
-    del SATELLITE_PASSWORD
-    return key
+    username = None
+    host = None
+    key = None
+    client = None
+    closed = False
 
-def get_configs(client):
-    """docstring for get_configs"""
-    pass
+    def __init__(self,username,password,host):
+        """connects to the satellite db with given parameters"""
+        URL = "https://%s/rpc/api" % host
+        self.client = xmlrpclib.Server(URL)
+        self.key = client.auth.login(username,password)
+        self.usernams = username
+        self.host = host
+        pass
 
-#TODO: move to object, then make it so objects can be created or copied and copying just adds an option to clone to the connected machine. simple enough to read, should be possible.
+    def close(self):
+        """closes a connection. item can be destroyed then"""
+        self.client.auth.logout(self.key)
+        self.closed = True
+        pass
 
+    def __exit__(self):
+        """closes connection on exit"""
+        if not self.closed :
+            self.client.auth.logout(self.key)
+        pass
+
+#Configuration class - stores a config channel, aka the info from one or to create one
+class RHNSConfig:
+
+    label = None
+    name = None
+    orgId = 1
+    configid = None # should be the id number of the org, if exists. set upon creation
+    description = None
+    configChannelType = None # see getDetails from the api doc on configchannel namespace
+
+    def __init__(self):
+        """initiator - creates the python copy of the data for the channel. use load or write to finish later. use getter and setter to get elements if required"""
+        
+        pass
+
+###################
+# the main function
+###################
 def main(version):
     import optparse
     global client
@@ -97,9 +84,13 @@ def main(version):
     if options.clabel == None and not options.listing: 
         parser.error('no action defined - use -h for usage information')
     else:
-        #init main
-        client = 
-        client.auth.logout(key)
+        #TODO:
+        #1 - init connection with parent
+        #2 - init connection with destination (unless -l is used)
+        #3a - read info or 3b list all and quit
+        #4 - copy info to new object
+        #5 - write object
+
 
 if __name__ == "__main__":
     main(__version__)
