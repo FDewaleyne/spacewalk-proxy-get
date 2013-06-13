@@ -1,0 +1,120 @@
+#!/usr/bin/python
+
+##
+# To the extent possible under law, Red Hat, Inc. has dedicated all copyright to this software to the public domain worldwide, pursuant to the CC0 Public Domain Dedication. 
+# This software is distributed without any warranty.  See <http://creativecommons.org/publicdomain/zero/1.0/>.
+##
+__author__ = "Felix Dewaleyne"
+__credits__ = ["Felix Dewaleyne"]
+__license__ = "GPL"
+__version__ = "0.1"
+__maintainer__ = "Felix Dewaleyne"
+__email__ = "fdewaley@redhat.com"
+__status__ = "alpha"
+
+# copies a configuration channel from one satellite to another
+
+import xmlrpclib, warnings, re
+
+#connector class -used to initiate a connection to a satellite and to send the proper satellite the proper commands
+class RHNSConnection:
+
+    username = None
+    host = None
+    key = None
+    client = None
+    closed = False
+
+    def __init__(self,username,password,host):
+        """connects to the satellite db with given parameters"""
+        URL = "https://%s/rpc/api" % host
+        self.client = xmlrpclib.Server(URL)
+        self.key = client.auth.login(username,password)
+        self.usernams = username
+        self.host = host
+        pass
+
+    def close(self):
+        """closes a connection. item can be destroyed then"""
+        self.client.auth.logout(self.key)
+        self.closed = True
+        pass
+
+    def __exit__(self):
+        """closes connection on exit"""
+        if not self.closed :
+            self.client.auth.logout(self.key)
+        pass
+
+#Configuration class - stores a config channel, aka the info from one or to create one
+class RHNSConfig:
+
+    # default values for an object
+    # must be initializated
+    label = None
+    configid = None # should be the id number of the org, if exists. set upon creation
+    #other values that can be initializated later
+    name = None
+    orgId = 1 
+    description = None
+    configChannelType = None # see getDetails from the api doc on configchannel namespace
+
+    def __init__(self):
+        """initiator - creates the python copy of the data for the channel. use load or write to finish later. use getter and setter to get elements if required"""
+        
+        pass
+
+    def write(self):
+        """writes the changes to the config channel(currently new config channel only)"""
+        #if there is an id the object is in the database, therefore should just be changed.
+        #if there isn't then the config channel needs to be created from all the data present.
+        #TODO: raise an exception when not everything is detailed.
+        pass
+
+    def read(self):
+        """reads the config channel and updates the object to match the state of the config channel"""
+        pass
+
+    def compare_configs(self,other):
+        """compares the configuration files between two orgs, returns the list of config file objects that are in other and not self"""
+        pass
+
+    def merge_configs(self,other,compare_results=None):
+        """merges the configuration into the current object (does not write)"""
+        pass
+
+
+###################
+# the main function
+###################
+def main(version):
+    import optparse
+    global client
+    global clientdest
+    global key
+    global verbose
+    parser = optparse.OptionParser("Usage: %prog [options]/n Will copy a channel from the satellite defined in command line to prompted destination",version=version)
+    parser.add_option("-u", "--user", dest="user", type="string", help="User to connect to satellite")
+    parser.add_option("-p", "--password", dest="password", type="string", help="Password to connect to satellite")
+    parser.add_option("-c", "--channel", dest="channel", default=None, type="string", help="Label of the Channel to parse. Required for most operations")
+    parser.add_option("-H", "--host", dest="host", type="string", default="127.0.0.1", help="Satellite hostname or ip - defaults to %default")
+    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Turns up the verbosity")
+    parser.add_option("-l", "--list", dest="listing", action="store_true", default=False, help="List all the packages affected")
+    parser.add_option("--config", dest="clabel", type="string", help="Config channel to copy to the destination - needs to be visible to the user"
+    (options, args) = parser.parse_args()
+    verbose = options.verbose
+
+    if options.clabel == None and not options.listing: 
+        parser.error('no action defined - use -h for usage information')
+    else:
+        #TODO:
+        #1 - init connection with parent
+        #2 - init connection with destination (unless -l is used)
+        #3a - read info or 3b list all and quit
+        #4 - copy info to new object
+        #5 - write object
+
+
+if __name__ == "__main__":
+    main(__version__)
+
