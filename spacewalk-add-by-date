@@ -217,7 +217,7 @@ class RHNSErrata:
         else:
             pass #TODO replace with raising an exception here
         for apackage in connection.client.errata.listPackages(connection.key, self.advisory_name):
-            thepackage = RHNSPackate(connection,apackage)
+            thepackage = RHNSPackage(connection,apackage)
             self.packages[thepackage['id']] = thepackage
 
     def __eq__(self, other):
